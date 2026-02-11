@@ -1,0 +1,17 @@
+FROM mcr.microsoft.com/playwright:v1.40.0-jammy
+
+WORKDIR /app
+
+# Install a simple static web server
+RUN npm install -g http-server
+
+# Create a separate directory for node_modules to avoid being overwritten by volume mount
+WORKDIR /deps
+RUN npm init -y && npm install @playwright/test@1.40.0
+
+WORKDIR /app
+# Copy project files
+ 
+# Run tests
+# We use the playwright test runner from the /deps/node_modules
+CMD ["sh", "-c", "http-server . -p 8080 & sleep 2 && NODE_PATH=/deps/node_modules /deps/node_modules/.bin/playwright test --output=/app/playwright-report-videos"]
