@@ -2,6 +2,6 @@
   "name": "html-document-chunker",
   "version": "1.0.0",
   "scripts": {
-    "test": "docker compose up --build --exit-code-from test-runner"
+    "test": "sudo docker compose up --build --exit-code-from test-runner"
   }
 }
