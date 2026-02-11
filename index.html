@@ -55,11 +55,10 @@
             <div class="mt-4 flex flex-wrap justify-center gap-2">
                 <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">PDF</span>
                 <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">DOCX/DOC/ODT</span>
-                <span
-                    class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">XLSX/XLS/ODS/CSV</span>
-                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">PPTX/PPT/ODP</span>
-                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">IMG
-                    (JPG/PNG/WEBP)</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">XLSX/XLS/CSV</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">PPTX/PPT</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">TXT/MD</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">IMG</span>
             </div>
         </header>
 
@@ -70,6 +69,7 @@
                     <label class="block text-sm font-semibold mb-2">每片長度 (Character Length)</label>
                     <input type="number" id="chunkSize" value="1000"
                         class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <p class="text-xs text-slate-400 mt-1">*PPTX 與 表格檔將忽略此設定</p>
                 </div>
                 <div>
                     <label class="block text-sm font-semibold mb-2">重疊長度 (Overflow/Overlap)</label>
@@ -133,11 +133,10 @@
                                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
                         <p class="text-lg font-medium">點擊或拖拽檔案至此</p>
-                        <p class="text-sm text-slate-500 mt-2">支援格式：pdf, docx, doc, odt, xlsx, xls, ods, pptx, ppt, odp,
-                            csv, 圖片</p>
+                        <p class="text-sm text-slate-500 mt-2">支援：PDF, Word, Excel, PPT, CSV, TXT, MD, 圖片</p>
                     </div>
                     <input type="file" id="fileInput" multiple class="hidden"
-                        accept=".pdf,.docx,.doc,.odt,.xlsx,.xls,.ods,.pptx,.ppt,.odp,.csv,image/*">
+                        accept=".pdf,.docx,.doc,.odt,.xlsx,.xls,.ods,.pptx,.ppt,.odp,.csv,.txt,.md,.markdown,image/*">
                 </div>
 
                 <div id="fileList" class="mt-4 space-y-2"></div>
@@ -189,6 +188,7 @@
 
         let selectedFiles = [];
         let lastZipBlob = null;
+        let lastZipName = "chunks.zip";
 
         toggleAi.addEventListener('click', () => {
             aiSettings.classList.toggle('hidden');
@@ -238,7 +238,8 @@
             selectedFiles.forEach(addFileToUI);
         }
 
-        async function extractTextFromFile(file) {
+        // 修改：extractDataFromFile 回傳物件 { type: 'text' | 'list', content: string | string[] }
+        async function extractDataFromFile(file) {
             const ext = file.name.split('.').pop().toLowerCase();
             try {
                 if (ext === 'pdf') {
@@ -250,42 +251,72 @@
                         const textContent = await page.getTextContent();
                         fullText += textContent.items.map(item => item.str).join(' ') + '\n';
                     }
-                    return fullText;
+                    return { type: 'text', content: fullText };
                 }
                 else if (['docx', 'doc', 'odt'].includes(ext)) {
                     const arrayBuffer = await file.arrayBuffer();
                     const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-                    return result.value;
+                    return { type: 'text', content: result.value };
                 }
                 else if (['xlsx', 'xls', 'ods', 'csv'].includes(ext)) {
                     const arrayBuffer = await file.arrayBuffer();
                     const workbook = XLSX.read(arrayBuffer);
-                    let fullText = '';
+                    let rows = [];
                     workbook.SheetNames.forEach(sheetName => {
-                        fullText += XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]) + '\n\n';
+                        const sheet = workbook.Sheets[sheetName];
+                        // 使用 sheet_to_json 自動處理 header
+                        const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 0, defval: "" }); // header: 0 means use first row as keys
+
+                        // 過濾掉全空的 row 並轉為 JSON 字串
+                        sheetData.forEach(row => {
+                            // 簡單檢查 row 是否有實質內容
+                            if (Object.keys(row).length > 0 && Object.values(row).some(v => v !== "")) {
+                                rows.push(JSON.stringify(row, null, 0)); // 轉為緊湊的 JSON
+                            }
+                        });
                     });
-                    return fullText;
+                    return { type: 'list', content: rows };
                 }
                 else if (['pptx', 'ppt', 'odp'].includes(ext)) {
                     const arrayBuffer = await file.arrayBuffer();
                     const zip = await JSZip.loadAsync(arrayBuffer);
-                    let fullText = '';
-                    const slideFiles = Object.keys(zip.files).filter(name => name.startsWith('ppt/slides/slide'));
-                    for (const slide of slideFiles.sort()) {
+                    let slides = [];
+                    // 找出所有 slide xml 檔案並排序
+                    const slideFiles = Object.keys(zip.files)
+                        .filter(name => name.match(/ppt\/slides\/slide\d+\.xml/))
+                        .sort((a, b) => {
+                            const numA = parseInt(a.match(/slide(\d+)\.xml/)[1]);
+                            const numB = parseInt(b.match(/slide(\d+)\.xml/)[1]);
+                            return numA - numB;
+                        });
+
+                    for (const slide of slideFiles) {
                         const content = await zip.files[slide].async('text');
+                        // 簡單的 XML 解析提取文字
                         const matches = content.match(/<a:t>([^<]+)<\/a:t>/g);
-                        if (matches) fullText += matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ') + '\n';
+                        if (matches) {
+                            const slideText = matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ').trim();
+                            if (slideText) slides.push(slideText);
+                        }
                     }
-                    return fullText;
+                    return { type: 'list', content: slides };
                 }
                 else if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
                     const apiKey = document.getElementById('aiApiKey').value;
-                    return apiKey ? await analyzeImage(file) : "[圖片未辨識：請提供 AI API Key]";
+                    const text = apiKey ? await analyzeImage(file) : "[圖片未辨識：請提供 AI API Key]";
+                    return { type: 'text', content: text };
                 }
-                return await file.text();
+                else if (['txt', 'md', 'markdown'].includes(ext)) {
+                    const text = await file.text();
+                    return { type: 'text', content: text };
+                }
+                // 預設當作純文字
+                const text = await file.text();
+                return { type: 'text', content: text };
+
             } catch (err) {
                 console.error(`解析失敗:`, err);
-                return `[解析錯誤: ${file.name}]`;
+                return { type: 'text', content: `[解析錯誤: ${file.name}]` };
             }
         }
 
@@ -306,10 +337,19 @@
             try { return await fetchWithRetry(); } catch (err) { return `[AI 辨識失敗: ${err.message}]`; }
         }
 
-        function performChunking(text, size, overlap, smart) {
+        // 修改：chunking 邏輯接收物件，並增加 trim
+        function performChunking(extractedData, size, overlap, smart) {
+            if (extractedData.type === 'list') {
+                // 如果是列表 (PPTX, Excel)，直接回傳列表，並對每一項做 trim
+                return extractedData.content.map(item => item.trim()).filter(item => item.length > 0);
+            }
+
+            // 純文字模式：執行 Sliding Window
+            const text = extractedData.content;
             const chunks = [];
             let i = 0;
-            if (text.length <= size) return [text];
+            if (text.length <= size) return [text.trim()];
+
             while (i < text.length) {
                 let end = i + size;
                 if (smart && end < text.length) {
@@ -319,7 +359,9 @@
                     ['\n', '。', '！', '？', '!', '?', '；', ';'].forEach(p => { const idx = fragment.lastIndexOf(p); if (idx > lastIdx) lastIdx = idx; });
                     if (lastIdx !== -1) end = (end - lookback) + lastIdx + 1;
                 }
-                chunks.push(text.substring(i, end).trim());
+                const chunk = text.substring(i, end).trim();
+                if (chunk) chunks.push(chunk);
+
                 if (end >= text.length) break;
                 i = end - overlap;
                 if (i >= end) i = end - 1;
@@ -327,17 +369,17 @@
             return chunks;
         }
 
-        function downloadZip(blob) {
+        function downloadZip(blob, filename) {
             const a = document.createElement("a");
             a.href = URL.createObjectURL(blob);
-            a.download = `chunks_${new Date().getTime()}.zip`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
         }
 
         downloadAgainBtn.addEventListener('click', () => {
-            if (lastZipBlob) downloadZip(lastZipBlob);
+            if (lastZipBlob) downloadZip(lastZipBlob, lastZipName);
         });
 
         processBtn.addEventListener('click', async () => {
@@ -356,8 +398,12 @@
 
                 for (const file of selectedFiles) {
                     statusEl.textContent = `正在處理: ${file.name}...`;
-                    const rawText = await extractTextFromFile(file);
-                    const chunks = performChunking(rawText, chunkSize, overlapSize, smartSplit);
+
+                    // 1. 提取資料
+                    const extractedData = await extractDataFromFile(file);
+
+                    // 2. 執行切分
+                    const chunks = performChunking(extractedData, chunkSize, overlapSize, smartSplit);
 
                     const fileNameNoExt = file.name.replace(/\.[^/.]+$/, "");
                     const folder = zip.folder(fileNameNoExt);
@@ -366,7 +412,7 @@
                         folder.file(`${fileNameNoExt}-chunk-${index + 1}.txt`, chunk);
                     });
 
-                    // 渲染預覽 UI，設定內容為可滾動
+                    // 渲染預覽 UI
                     const previewHtml = `
                         <div class="bg-white border rounded-xl overflow-hidden shadow-sm preview-card p-4">
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
@@ -392,7 +438,14 @@
                 statusEl.textContent = "正在生成 Zip 檔案...";
 
                 lastZipBlob = await zip.generateAsync({ type: "blob" });
-                downloadZip(lastZipBlob);
+
+                // 產生更有意義的檔名
+                const firstFileName = selectedFiles[0].name.replace(/\.[^/.]+$/, "");
+                // 取檔名前10個字 (如果太長)，若為多檔則加上後綴
+                const safeName = firstFileName.substring(0, 20);
+                lastZipName = `${safeName}_chunks.zip`;
+
+                downloadZip(lastZipBlob, lastZipName);
 
                 downloadAgainBtn.classList.remove('hidden');
                 statusEl.textContent = "處理完成！檔案已自動下載。";
