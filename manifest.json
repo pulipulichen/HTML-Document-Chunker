@@ -1,6 +1,6 @@
 {
-  "name": "檔案切片與 AI 圖片辨識工具",
-  "short_name": "檔案切片工具",
+  "name": "Doc Chunker",
+  "short_name": "Doc Chunker",
   "description": "上傳文件，自動切分並打包為 Zip，支援 PDF, Word, Excel, PPT, CSV, TXT, MD 與圖片 AI 辨識。",
   "start_url": ".",
   "display": "standalone",
