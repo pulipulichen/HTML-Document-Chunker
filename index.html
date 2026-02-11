@@ -21,23 +21,27 @@
             background-color: #eff6ff;
         }
 
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            animation: spin 1s linear infinite;
+        .preview-card {
+            border-left: 4px solid #3b82f6;
         }
 
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
+        /* 自定義捲軸樣式 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
 
-            100% {
-                transform: rotate(360deg);
-            }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 </head>
@@ -45,9 +49,18 @@
 <body class="bg-slate-50 min-h-screen p-4 md:p-8 text-slate-800">
 
     <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
-        <header class="bg-blue-600 p-6 text-white">
+        <header class="bg-blue-600 p-6 text-white text-center">
             <h1 class="text-2xl font-bold">檔案切片與 AI 工具</h1>
             <p class="text-blue-100 text-sm mt-1">上傳文件，自動切分並打包為 Zip</p>
+            <div class="mt-4 flex flex-wrap justify-center gap-2">
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">PDF</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">DOCX/DOC/ODT</span>
+                <span
+                    class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">XLSX/XLS/ODS/CSV</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">PPTX/PPT/ODP</span>
+                <span class="bg-blue-500/50 px-2 py-1 rounded text-[10px] border border-blue-400">IMG
+                    (JPG/PNG/WEBP)</span>
+            </div>
         </header>
 
         <div class="p-6 space-y-8">
@@ -97,7 +110,7 @@
                         <div>
                             <label
                                 class="block text-xs font-semibold mb-1 uppercase tracking-wider text-slate-500">Model</label>
-                            <input type="text" id="aiModel" value="gemini-2.5-flash-preview-09-2025"
+                            <input type="text" id="aiModel" value="gemini-1.5-flash-latest"
                                 class="w-full p-2 border rounded-lg text-sm">
                         </div>
                         <div>
@@ -107,8 +120,6 @@
                                 class="w-full p-2 border rounded-lg text-sm">
                         </div>
                     </div>
-                    <p class="text-xs text-slate-400">注意：若啟用 AI 功能，PDF 中的圖片或上傳的圖片將被發送到 Gemini API。API Key 僅供瀏覽器本地發送請求使用。
-                    </p>
                 </div>
             </section>
 
@@ -122,26 +133,43 @@
                                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
                         <p class="text-lg font-medium">點擊或拖拽檔案至此</p>
-                        <p class="text-sm text-slate-400 mt-1">支援 PDF, DOCX, XLSX, PPTX, CSV, 圖片 等格式</p>
+                        <p class="text-sm text-slate-500 mt-2">支援格式：pdf, docx, doc, odt, xlsx, xls, ods, pptx, ppt, odp,
+                            csv, 圖片</p>
                     </div>
-                    <input type="file" id="fileInput" multiple class="hidden">
+                    <input type="file" id="fileInput" multiple class="hidden"
+                        accept=".pdf,.docx,.doc,.odt,.xlsx,.xls,.ods,.pptx,.ppt,.odp,.csv,image/*">
                 </div>
 
                 <div id="fileList" class="mt-4 space-y-2"></div>
             </section>
 
             <!-- 執行按鈕 -->
-            <div class="flex justify-center pt-4">
-                <button id="processBtn"
-                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-full shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center space-x-2">
-                    <span>開始執行並下載 Zip</span>
-                </button>
+            <div class="flex flex-col items-center space-y-4 pt-4 border-t">
+                <div class="flex flex-wrap justify-center gap-4">
+                    <button id="processBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-full shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center space-x-2">
+                        <span>開始執行並下載 Zip</span>
+                    </button>
+                    <button id="downloadAgainBtn"
+                        class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-10 rounded-full shadow-lg transition-transform active:scale-95 flex items-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span>再次下載 Zip</span>
+                    </button>
+                </div>
+                <div id="status"
+                    class="hidden text-center p-4 bg-blue-50 text-blue-700 rounded-lg animate-pulse w-full">
+                    處理中，請稍候...
+                </div>
             </div>
 
-            <!-- 進度提示 -->
-            <div id="status" class="hidden text-center p-4 bg-blue-50 text-blue-700 rounded-lg animate-pulse">
-                處理中，請稍候...
-            </div>
+            <!-- 結果預覽區 -->
+            <section id="resultsSection" class="hidden space-y-6 pt-6 border-t">
+                <h2 class="text-xl font-bold text-slate-700 text-center">執行結果預覽 (前 3 個分片)</h2>
+                <div id="resultsContainer" class="space-y-6"></div>
+            </section>
         </div>
     </div>
 
@@ -152,13 +180,16 @@
         const fileInput = document.getElementById('fileInput');
         const fileList = document.getElementById('fileList');
         const processBtn = document.getElementById('processBtn');
+        const downloadAgainBtn = document.getElementById('downloadAgainBtn');
         const statusEl = document.getElementById('status');
         const toggleAi = document.getElementById('toggleAi');
         const aiSettings = document.getElementById('aiSettings');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsContainer = document.getElementById('resultsContainer');
 
         let selectedFiles = [];
+        let lastZipBlob = null;
 
-        // UI 互動
         toggleAi.addEventListener('click', () => {
             aiSettings.classList.toggle('hidden');
             toggleAi.textContent = aiSettings.classList.contains('hidden') ? '展開設定' : '隱藏設定';
@@ -207,10 +238,8 @@
             selectedFiles.forEach(addFileToUI);
         }
 
-        // 核心邏輯：文字解析
         async function extractTextFromFile(file) {
             const ext = file.name.split('.').pop().toLowerCase();
-
             try {
                 if (ext === 'pdf') {
                     const arrayBuffer = await file.arrayBuffer();
@@ -220,16 +249,10 @@
                         const page = await pdf.getPage(i);
                         const textContent = await page.getTextContent();
                         fullText += textContent.items.map(item => item.str).join(' ') + '\n';
-
-                        // 處理頁面中的圖片 (如果啟用了 AI)
-                        if (document.getElementById('aiApiKey').value) {
-                            // 這邊簡化流程：暫不直接解析 PDF 內的 Embedded Images (需要更複雜的解析)
-                            // 建議使用者若有圖片需求直接上傳圖片檔
-                        }
                     }
                     return fullText;
                 }
-                else if (ext === 'docx') {
+                else if (['docx', 'doc', 'odt'].includes(ext)) {
                     const arrayBuffer = await file.arrayBuffer();
                     const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
                     return result.value;
@@ -239,13 +262,11 @@
                     const workbook = XLSX.read(arrayBuffer);
                     let fullText = '';
                     workbook.SheetNames.forEach(sheetName => {
-                        fullText += `Sheet: ${sheetName}\n`;
                         fullText += XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]) + '\n\n';
                     });
                     return fullText;
                 }
-                else if (['pptx'].includes(ext)) {
-                    // PPTX 解析通常需要專用庫，這邊使用 JSZip 讀取文本
+                else if (['pptx', 'ppt', 'odp'].includes(ext)) {
                     const arrayBuffer = await file.arrayBuffer();
                     const zip = await JSZip.loadAsync(arrayBuffer);
                     let fullText = '';
@@ -253,132 +274,79 @@
                     for (const slide of slideFiles.sort()) {
                         const content = await zip.files[slide].async('text');
                         const matches = content.match(/<a:t>([^<]+)<\/a:t>/g);
-                        if (matches) {
-                            fullText += matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ') + '\n';
-                        }
+                        if (matches) fullText += matches.map(m => m.replace(/<[^>]+>/g, '')).join(' ') + '\n';
                     }
                     return fullText;
                 }
                 else if (['jpg', 'jpeg', 'png', 'webp'].includes(ext)) {
                     const apiKey = document.getElementById('aiApiKey').value;
-                    if (apiKey) {
-                        return await analyzeImage(file);
-                    } else {
-                        return "[無法解析圖片文字：未提供 AI API Key]";
-                    }
+                    return apiKey ? await analyzeImage(file) : "[圖片未辨識：請提供 AI API Key]";
                 }
-                else if (['txt', 'md', 'json'].includes(ext)) {
-                    return await file.text();
-                }
-                else {
-                    return await file.text(); // 嘗試當作純文字讀取
-                }
+                return await file.text();
             } catch (err) {
-                console.error(`解析 ${file.name} 失敗:`, err);
+                console.error(`解析失敗:`, err);
                 return `[解析錯誤: ${file.name}]`;
             }
         }
 
-        // Gemini API 指數退避請求
         async function analyzeImage(file) {
             const apiKey = document.getElementById('aiApiKey').value;
             const baseUrl = document.getElementById('aiBaseUrl').value;
             const model = document.getElementById('aiModel').value;
             const promptText = document.getElementById('aiPrompt').value;
-
-            const base64 = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.readAsDataURL(file);
-            });
-
+            const base64 = await new Promise(r => { const reader = new FileReader(); reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(file); });
             const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            const payload = {
-                contents: [{
-                    parts: [
-                        { text: promptText },
-                        { inlineData: { mimeType: file.type, data: base64 } }
-                    ]
-                }]
-            };
-
+            const payload = { contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType: file.type, data: base64 } }] }] };
             const fetchWithRetry = async (retries = 5, delay = 1000) => {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        body: JSON.stringify(payload),
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-                    const result = await response.json();
-                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "[AI 無法辨識內容]";
-                } catch (err) {
-                    if (retries > 0) {
-                        await new Promise(r => setTimeout(r, delay));
-                        return fetchWithRetry(retries - 1, delay * 2);
-                    }
-                    throw err;
-                }
+                const response = await fetch(url, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'application/json' } });
+                if (!response.ok) { if (retries > 0) { await new Promise(r => setTimeout(r, delay)); return fetchWithRetry(retries - 1, delay * 2); } throw new Error(response.status); }
+                const result = await response.json();
+                return result.candidates?.[0]?.content?.parts?.[0]?.text || "[AI 無法辨識內容]";
             };
-
-            try {
-                return await fetchWithRetry();
-            } catch (err) {
-                return `[AI 辨識失敗: ${err.message}]`;
-            }
+            try { return await fetchWithRetry(); } catch (err) { return `[AI 辨識失敗: ${err.message}]`; }
         }
 
-        // 文字切片演算法
         function performChunking(text, size, overlap, smart) {
             const chunks = [];
             let i = 0;
-
             if (text.length <= size) return [text];
-
             while (i < text.length) {
                 let end = i + size;
-
                 if (smart && end < text.length) {
-                    // 尋找最近的換行或標點
-                    const lookback = Math.floor(size * 0.2); // 往前找 20% 的範圍
+                    const lookback = Math.floor(size * 0.2);
                     const fragment = text.substring(end - lookback, end);
-                    const match = fragment.match(/[\n。！？!?；;]/);
-
-                    if (match) {
-                        // 找到最後一個標點符號的位置
-                        let lastIdx = -1;
-                        const punctuations = ['\n', '。', '！', '？', '!', '?', '；', ';'];
-                        punctuations.forEach(p => {
-                            const idx = fragment.lastIndexOf(p);
-                            if (idx > lastIdx) lastIdx = idx;
-                        });
-
-                        if (lastIdx !== -1) {
-                            end = (end - lookback) + lastIdx + 1;
-                        }
-                    }
+                    let lastIdx = -1;
+                    ['\n', '。', '！', '？', '!', '?', '；', ';'].forEach(p => { const idx = fragment.lastIndexOf(p); if (idx > lastIdx) lastIdx = idx; });
+                    if (lastIdx !== -1) end = (end - lookback) + lastIdx + 1;
                 }
-
                 chunks.push(text.substring(i, end).trim());
-
                 if (end >= text.length) break;
                 i = end - overlap;
-
-                // 防止無限循環 (如果 overlap 大於等於 size)
                 if (i >= end) i = end - 1;
             }
             return chunks;
         }
 
-        // 執行主程序
-        processBtn.addEventListener('click', async () => {
-            if (selectedFiles.length === 0) {
-                alert("請先上傳檔案");
-                return;
-            }
+        function downloadZip(blob) {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = `chunks_${new Date().getTime()}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
 
+        downloadAgainBtn.addEventListener('click', () => {
+            if (lastZipBlob) downloadZip(lastZipBlob);
+        });
+
+        processBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return alert("請先上傳檔案");
             processBtn.disabled = true;
+            downloadAgainBtn.classList.add('hidden');
             statusEl.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+            resultsContainer.innerHTML = '';
 
             try {
                 const zip = new JSZip();
@@ -391,29 +359,48 @@
                     const rawText = await extractTextFromFile(file);
                     const chunks = performChunking(rawText, chunkSize, overlapSize, smartSplit);
 
-                    const folder = zip.folder(file.name.replace(/\.[^/.]+$/, ""));
+                    const fileNameNoExt = file.name.replace(/\.[^/.]+$/, "");
+                    const folder = zip.folder(fileNameNoExt);
+
                     chunks.forEach((chunk, index) => {
-                        folder.file(`${String(index + 1).padStart(3, '0')}.txt`, chunk);
+                        folder.file(`${fileNameNoExt}-chunk-${index + 1}.txt`, chunk);
                     });
+
+                    // 渲染預覽 UI，設定內容為可滾動
+                    const previewHtml = `
+                        <div class="bg-white border rounded-xl overflow-hidden shadow-sm preview-card p-4">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
+                                <h3 class="font-bold text-lg text-blue-600 truncate max-w-md">${file.name}</h3>
+                                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">總計 ${chunks.length} 個分片</span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                ${chunks.slice(0, 3).map((c, idx) => `
+                                    <div class="bg-slate-50 rounded border border-slate-200 flex flex-col overflow-hidden h-80">
+                                        <div class="bg-slate-200/50 px-3 py-1.5 font-bold text-[10px] text-slate-500 uppercase tracking-widest border-b">Chunk ${idx + 1}</div>
+                                        <div class="p-3 text-xs text-slate-600 overflow-y-auto custom-scrollbar flex-grow whitespace-pre-wrap leading-relaxed">
+                                            ${c}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    resultsContainer.insertAdjacentHTML('beforeend', previewHtml);
                 }
 
+                resultsSection.classList.remove('hidden');
                 statusEl.textContent = "正在生成 Zip 檔案...";
-                const content = await zip.generateAsync({ type: "blob" });
-                const url = window.URL.createObjectURL(content);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `chunks_${new Date().getTime()}.zip`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
 
-                statusEl.textContent = "處理完成！";
-                setTimeout(() => statusEl.classList.add('hidden'), 3000);
+                lastZipBlob = await zip.generateAsync({ type: "blob" });
+                downloadZip(lastZipBlob);
+
+                downloadAgainBtn.classList.remove('hidden');
+                statusEl.textContent = "處理完成！檔案已自動下載。";
+                setTimeout(() => { if (!statusEl.classList.contains('hidden')) statusEl.classList.add('hidden'); }, 5000);
 
             } catch (err) {
                 console.error(err);
-                alert("處理過程中發生錯誤，請查看控制台。");
+                alert("處理出錯，請查看開發者工具。");
             } finally {
                 processBtn.disabled = false;
             }
